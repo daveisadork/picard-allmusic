@@ -14,26 +14,37 @@ from BeautifulSoup import BeautifulSoup
 from BeautifulSoup import NavigableString
 
 def scrape_album(url):
-    print "Scraping genre and style data from " + url
+    print url
     output = open("/home/dhayes/Desktop/output.txt","w")
     html = urllib2.urlopen(url).read().replace("</scr'+'ipt>","</script>")
     soup = BeautifulSoup(html)
     output.write(soup.prettify())
-    for styles in soup.find(text="Styles Listing").findNext('ul').findAll('a'):
-    	print styles.contents[0]
-    print styles
+    try:
+        for styles in soup.find(text="Styles Listing").findNext('ul').findAll('a'):
+            print styles.contents[0]
+    except AttributeError:
+        print "Looks like the page is malformed or something"
+        return
     
 def album_search(albumartist, album):
     base_url = "http://allmusic.com"
     url = base_url + "/cg/amg.dll?P=amg&opt1=2&sql=" + urllib.quote(album)
     html = urllib2.urlopen(url).read().replace("</scr'+'ipt>","</script>")
     soup = BeautifulSoup(html)
-    album_link = base_url + soup.find(text=albumartist).findNext('td').findNext('td').a['href']
-    return album_link
+    try:
+        album_link = soup.find(id="albumsearchresults").find(text=albumartist).findNext('td').findNext('td').a
+        print "Using album link titled " + album_link.string + " with url:"
+        return base_url + album_link['href']
+    except AttributeError:
+        print "Couldn't find the right album, moving on"
+        return
        
 def allmusic_genre(album, metadata, release, try_list=None):
+    #if metadata["albumartist"] == "Various Artists":
+    #    return
     album_url = album_search(metadata["albumartist"],metadata["album"])
-    genres = scrape_album(album_url)
+    if album_url:
+        genres = scrape_album(album_url)
     return
 
 register_album_metadata_processor(allmusic_genre)
