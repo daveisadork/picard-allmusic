@@ -22,7 +22,8 @@ def get_album_data(url, albumartist):
     except:
         print "[fail]"
     if albumartist == u"Various Artists":
-        html = html.replace('<class="subtitle">Various Artists','<a href="" class="subtitle">Various Artists</a>')
+        html = html.replace('<class="subtitle">Various Artists',
+                            '<a href="" class="subtitle">Various Artists</a>')
     soup = BeautifulSoup(html)
     print "[ OK ]"
     return soup
@@ -92,14 +93,13 @@ def parse_results(soup, albumartist, album):
             print search[1] + " by " + search[0]
             return "http://allmusic.com" + search[3]
 
-def cleanAlbumName(albumName):
-    album = albumName
-    _discnumber_re = re.compile(r"\s+\(disc (\d+)(?::\s+([^)]+))?\)")
-    matches = _discnumber_re.search(album)
+def clean_album_name(album):
+    discnumber = re.compile(r"\s+\(disc (\d+)(?::\s+([^)]+))?\)")
+    matches = discnumber.search(album)
     if matches:
         album = album.replace(matches.group(0),'')
-    _bonusdisc_re = re.compile(r"\s+\(bonus disc(?::\s+([^)]+))?\)")
-    matches = _bonusdisc_re.search(album)
+    bonusdisc = re.compile(r"\s+\(bonus disc(?::\s+([^)]+))?\)")
+    matches = bonusdisc.search(album)
     if matches:
         album = album.replace(matches.group(0),'')
     return album
