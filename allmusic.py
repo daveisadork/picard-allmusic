@@ -105,7 +105,7 @@ def clean_album_name(album):
     return album
 
 def allmusic_genre(album, metadata, release):
-    sane_album = cleanAlbumName(metadata["album"])
+    sane_album = clean_album_name(metadata["album"])
     print " * Looking for " + sane_album + " by " + metadata["albumartist"]
     print " * Sending search request",
     search_results = album_search(metadata["albumartist"], sane_album)
