@@ -67,7 +67,6 @@ def album_search(albumartist, album):
 def parse_results(soup, albumartist, album):
     results = []
     strings = []
-    urls = []
     print " * Parsing search results",
     for listings in soup.find(id="results-table").findAll('tr', attrs={"class" : "visible"}):
         artist_string = listings.find(style="width:206px;word-wrap:break-word;").string
@@ -81,7 +80,6 @@ def parse_results(soup, albumartist, album):
     print "[ OK ]"
     for records in results:
         strings.append(records[2])
-        urls.append(records[3])
     search_string = albumartist + album
     print " * Looking for a close match:",
     match = get_close_matches(search_string, strings, 1, 0.6)
