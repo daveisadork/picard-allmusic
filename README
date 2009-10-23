@@ -26,6 +26,8 @@ and enable it via the 'Options' menu in Picard.
 There are no configuration options yet, so you're kind of just stuck with 
 whatever the plugin happens to find. Basically, assuming we can find a page for
 whatever album we're trying to tag, we just grab all of the "styles" listed on
-that page and tell Picard to use them as genre tags. Failing that, we grab the "styles" from the artist page and use those.
+that page and tell Picard to use them as genre tags. Failing that, we grab the
+"styles" from the artist page and use those.
 
-Also, it's really slow, so I wouldn't recommend trying to run it on your 40k song collection all at once. 
+Also, it's really slow, so I wouldn't recommend trying to run it on your 40k
+song collection all at once. 
