@@ -110,15 +110,19 @@ def allmusic_genre(album, metadata, release):
     print " * Sending search request",
     search_results = album_search(metadata["albumartist"], sane_album)
     if search_results == None:
+        print '\n',
         return
     album_url = parse_results(search_results, metadata["albumartist"], sane_album)
     if album_url == None:
+        print '\n',
         return
     album_data = get_album_data(album_url, metadata["albumartist"])
     if album_data == None:
+        print '\n',
         return
     styles = scrape_styles(album_data)
     if styles == []:
+        print '\n',
         return
     metadata["genre"] = styles
     print '\n'
