@@ -19,7 +19,7 @@ import re
 def finalize_genres(styles, metadata, target, albumtitle, albumartist, album):
     if styles == [] and target == "album_data" and albumartist != "Various Artists":
         album._requests += 1
-        album.tagger.xmlws.add_task(partial(artist_search, album, metadata, albumtitle), position=1)
+        album.tagger.xmlws.add_task(partial(artist_search, album, metadata, albumtitle, albumartist), position=1)
     elif styles == []:
         print " * Dang, couldn't find anything!\n"
     else:
@@ -128,7 +128,7 @@ def _data_downloaded(album, target, albumtitle, albumartist, metadata, data, htt
                 if target == "album_search" or target == "album_data":
                     album._requests += 1
                     print " * Sending artist search request",
-                    artist_search(album, metadata, albumtitle)
+                    artist_search(album, metadata, albumtitle, albumartist)
                     return
                 if target == "artist_search" or target == "artist_data":
                     return
@@ -137,7 +137,7 @@ def _data_downloaded(album, target, albumtitle, albumartist, metadata, data, htt
                 album_url = parse_album_search(html, albumartist, albumtitle)
                 if not album_url and albumartist != "Various Artists":
                     print " * Sending artist search request",
-                    artist_search(album, metadata, albumtitle)
+                    artist_search(album, metadata, albumtitle, albumartist)
                 else:
                     print " * Requesting album data",
                     get_data(album_url, "album_data", albumtitle, albumartist, album, metadata)
@@ -170,7 +170,7 @@ def album_search(album, metadata, albumtitle, albumartist):
     return get_data(path, "album_search", albumtitle, albumartist, album, metadata)
 
 def artist_search(album, metadata, albumtitle, albumartist):
-    path = "/cg/amg.dll?p=amg&opt1=1&sql=" + QtCore.QUrl.toPercentEncoding(unicode(metadata["albumartist"]))
+    path = "/cg/amg.dll?p=amg&opt1=1&sql=" + QtCore.QUrl.toPercentEncoding(unicode(albumartist))
     return get_data(path, "artist_search", albumtitle, albumartist, album, metadata)
 
 def clean_album_title(albumtitle):
