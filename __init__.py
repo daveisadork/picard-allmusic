@@ -6,6 +6,14 @@ PLUGIN_DESCRIPTION = "Scrape AllMusic for Genre Tags"
 PLUGIN_VERSION = "0.1"
 PLUGIN_API_VERSIONS = ["0.9.0", "0.10"]
 
+try:
+    from BeautifulSoup import BeautifulSouper
+except:
+    try:
+        from picard.plugins.allmusic.BeautifulSoup import BeautifulSoup
+    except:
+        print "Could not import BeautifulSoup. Get it at http://www.crummy.com/software/BeautifulSoup/"
+        raise ImportError
 from PyQt4 import QtCore
 from picard.ui.options import register_options_page, OptionsPage
 from picard.config import BoolOption, IntOption, TextOption
@@ -13,7 +21,6 @@ from picard.config import BoolOption, IntOption, TextOption
 from picard.metadata import register_album_metadata_processor, register_track_metadata_processor
 from picard.util import partial, translate_artist
 from picard.similarity import similarity2
-from BeautifulSoup import BeautifulSoup
 import re
 
 def get_close_matches(search_string, search_set, blah, min_score):
