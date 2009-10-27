@@ -7,7 +7,7 @@ PLUGIN_VERSION = "0.1"
 PLUGIN_API_VERSIONS = ["0.9.0", "0.10"]
 
 try:
-    from BeautifulSoup import BeautifulSouper
+    from BeautifulSoup import BeautifulSoup
 except:
     try:
         from picard.plugins.allmusic.BeautifulSoup import BeautifulSoup
