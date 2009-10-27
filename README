@@ -4,28 +4,25 @@ and potentially other information from allmusic.com
 In case you downloaded it from somewhere else, you can always get the latest
 version of this plugin from http://github.com/daveisadork/picard-allmusic
 
-At this point, this plugin requires the following libraries:
+At this point, this plugin requires the following library:
 
- * difflib
- 
  * BeautifulSoup 
    http://www.crummy.com/software/BeautifulSoup
 
-Basically, if you're running Picard on anything other than Linux, it's probably
-not going to work. If you are running Linux, you probably only need to install
-the python-beautifulsoup package provided by your distribution. I'm actively 
-working to try to make this work for those of you unfortunate/crazy enough to 
-be using Windows.
+The first step is to create a folder called allmusic in your Picard plugins
+directory (mine is ~/.config/MusicBrainz/Picard/plugins) and put __init__.py in
+there. If you're on Linux, you'll need to install the python-beautifulsoup 
+package provided by your distribution (to do this on Ubuntu, you could just run
+'sudo aptitude install python-beautifulsoup' at a terminal) and you're good to
+go. If you're on Windows, you probably need to download BeautifulSoup from the
+website listed above and put BeautifulSoup.py in the allmusic directory we
+created earlier with __init__.py. Then you should be all set.
 
-Once you have all the libraries you need, just drop allmusic.py into your 
-plugins directory (which is ~/.config/MusicBrainz/Picard/plugins on my system)
-and enable it via the 'Options' menu in Picard.
-
-There are no configuration options yet, so you're kind of just stuck with 
-whatever the plugin happens to find. Basically, assuming we can find a page for
-whatever album we're trying to tag, we just grab all of the "styles" listed on
-that page and tell Picard to use them as genre tags. Failing that, we grab the
-"styles" from the artist page and use those.
+There are no configuration options yet (but I'm Working on that), so you're kind
+of just stuck with whatever the plugin happens to find. Basically, assuming we 
+can find a page for whatever album we're trying to tag, we just grab all of the
+"styles" listed on that page and tell Picard to use them as genre tags. Failing
+that, we grab the "styles" from the artist page and use those.
 
 Also, it's really slow, so I wouldn't recommend trying to run it on your 40k
 song collection all at once, although after dropping urllib and urllib2 in
