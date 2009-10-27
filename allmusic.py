@@ -12,9 +12,19 @@ from picard.config import BoolOption, IntOption, TextOption
 #from picard.plugins.allmusic.ui_options_allmusic import Ui_AllMusicOptionsPage
 from picard.metadata import register_album_metadata_processor, register_track_metadata_processor
 from picard.util import partial, translate_artist
-from difflib import get_close_matches
+from picard.similarity import similarity2
 from BeautifulSoup import BeautifulSoup
 import re
+
+def get_close_matches(search_string, search_set, blah, min_score):
+    winner = ['none', 0]
+    for items in search_set:
+        score = similarity2(search_string, items)
+        if score > winner[1] and score > min_score:
+            winner = [items, score]
+    if winner[1] > min_score:
+        return winner
+    return []
 
 def finalize_genres(styles, metadata, target, albumtitle, albumartist, album):
     if styles == [] and target == "album_data" and albumartist != "Various Artists":
