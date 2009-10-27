@@ -198,6 +198,8 @@ def clean_album_title(albumtitle):
 def allmusic_genre(album, metadata, release):
     if metadata["albumartist"] != "Various Artists":
         albumartist = translate_artist(metadata['artist'], metadata['artistsort'])
+    else:
+        albumartist = metadata["albumartist"]
     albumtitle = clean_album_title(metadata["album"])
     print " * Looking for " + albumtitle + " by " + albumartist
     print " * Sending album search request",
