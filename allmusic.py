@@ -7,120 +7,49 @@ PLUGIN_VERSION = "0.1"
 PLUGIN_API_VERSIONS = ["0.9.0", "0.10"]
 
 from PyQt4 import QtCore
-from picard.metadata import register_album_metadata_processor
+from picard.ui.options import register_options_page, OptionsPage
+from picard.config import BoolOption, IntOption, TextOption
+#from picard.plugins.allmusic.ui_options_allmusic import Ui_AllMusicOptionsPage
+from picard.metadata import register_album_metadata_processor, register_track_metadata_processor
+from picard.util import partial
 from difflib import get_close_matches
 from BeautifulSoup import BeautifulSoup
-import urllib
-import urllib2
-import sys
 import re
 
-def parse_artist_search(search_results, albumartist):
-    brackets = re.compile(r" \[.*]")
-    results = []
-    artists = []
-    print " * Parsing artist search results",
-    for listings in search_results.find(id="results-table").findAll('tr'):
-        try:
-            artist_string = listings.find(style="width:290px;word-wrap:break-word;").find('a').string#.encode('utf-8')
-            artist_url = listings.find(style="width:290px;word-wrap:break-word;").find('a')['href']
-            matches = brackets.search(artist_string)
-            if matches:
-                artist_string = artist_string.replace(matches.group(0),'')
-            results.append([artist_string,artist_url])
-            artists.append(artist_string)
-        except:
-            pass
-    if results == []:
-        print "[fail]"
-        return
-    print "[ OK ]"
-    print " * Looking for a close match:",
-    match = get_close_matches(albumartist, artists, 1, 0.85)
-    if match == []:
-        print "none"
-        return
-    print match[0]
-    for search in results:
-        if match[0].encode('utf-8') == search[0]:
-            artist_data = get_artist_data("http://allmusic.com" + search[1])
-            return artist_data
-    return
-
-def get_artist_data(artist_url):
-    if artist_url == None:
-        return
-    print " * Requesting artist data",
-    try:
-        html = urllib2.urlopen(artist_url).read().replace("</scr'+'ipt>","</script>")
-    except:
-        print "[fail]"
-        return
-    artist_data = BeautifulSoup(html)
-    print "[ OK ]"
-    return artist_data
-
-def artist_search(albumartist):
-    print " * Sending artist search request",
-    base_url = "http://allmusic.com/cg/amg.dll"
-    arguments = {'P' : 'amg', 'opt1' : '1', 'sql' : albumartist}
-    try:
-        artist_search_url = urllib2.Request(base_url, urllib.urlencode(arguments))
-    except:
-        print "[fail]"
-        return
-    try:
-        html = urllib2.urlopen(artist_search_url).read().replace("</scr'+'ipt>","</script>")
-    except:
-        print "[fail]"
-        return
-    artist_search_results = BeautifulSoup(html)
-    if artist_search_results.html.head.title.string == "allmusic":
-        print "[ OK ]"
-        artist_data = parse_artist_search(artist_search_results, albumartist)
+def finalize_genres(styles, metadata, target, albumtitle, albumartist, album):
+    if styles == [] and target == "album_data":
+        album._requests += 1
+        album.tagger.xmlws.add_task(partial(artist_search, album, metadata, albumtitle), position=1)
+    elif styles == []:
+        print " * Dang, couldn't find anything!",
     else:
-        print "[ OK ]"
-        artist_data = artist_search_results
-    if artist_data == None:
-        return
-    return artist_data
+        metadata["genre"] = styles
+        for track in album._new_tracks:
+            track.metadata["genre"] = styles
+        print ""
 
-def get_album_data(album_url, albumartist):
-    if album_url == None:
-        return
-    print " * Requesting album page",
+def scrape_styles(html, album, target, albumtitle, albumartist, metadata):
+    styles = []
     try:
-        html = urllib2.urlopen(album_url).read().replace("</scr'+'ipt>","</script>")
+        print " * Scraping styles:",
+        for style in html.find(text="Genre Listing").findNext('ul').findAll('a'):
+            styles.append(style.contents[0].replace("/ ","/"))
+        if styles == []:
+            print "none"
+        for style in styles:
+            if style != styles[0]:
+                print "\b, " + style,
+            else:
+                print style,
     except:
-        print "[fail]"
-        return
-    if albumartist == u"Various Artists":
-        html = html.replace('<class="subtitle">Various Artists', '<a href="" class="subtitle">Various Artists</a>')
-    album_data = BeautifulSoup(html)
-    print "[ OK ]"
-    return album_data
+        pass
+    finally:
+        print "\n",
+        finalize_genres(styles, metadata, target, albumtitle, albumartist, album)
+        metadata["genre"] = styles
+        album._requests -= 1
 
-def album_search(albumartist, album):
-    base_url = "http://allmusic.com/cg/amg.dll"
-    arguments = {'P' : 'amg', 'opt1' : '2', 'sql' : album}
-    print " * Sending album search request",
-    try:
-        album_search_url = urllib2.Request(base_url, urllib.urlencode(arguments))
-    except:
-        print "[fail]"
-        return
-    try:
-        html = urllib2.urlopen(album_search_url).read().replace("</scr'+'ipt>","</script>")
-    except:
-        print "[fail]"
-        return
-    album_search_results = BeautifulSoup(html)
-    print "[ OK ]"
-    album_url = parse_album_search(album_search_results, albumartist, album)
-    album_data = get_album_data(album_url, albumartist)
-    return album_data
-
-def parse_album_search(search_results, albumartist, album):
+def parse_album_search(search_results, albumartist, albumtitle):
     results = []
     strings = []
     print " * Parsing album search results",
@@ -132,66 +61,91 @@ def parse_album_search(search_results, albumartist, album):
         results.append([artist_string, album_string, search_string, album_url])
     if results == []:
         print "[fail]"
-        return
+        return None
     print "[ OK ]"
     for records in results:
         strings.append(records[2])
-    search_string = albumartist + album
+    search_string = albumartist + albumtitle
     print " * Looking for a close match:",
     match = get_close_matches(search_string, strings, 1, 0.6)
     if match == []:
         print "none"
-        return
+        return None
     for search in results:
         if match[0] == search[2].encode('utf-8'):
             print search[1] + " by " + search[0]
-            return "http://allmusic.com" + search[3]
+            return search[3]
 
-def clean_album_name(album):
-    discnumber = re.compile(r"\s+\(disc (\d+)(?::\s+([^)]+))?\)")
-    matches = discnumber.search(album)
-    if matches:
-        album = album.replace(matches.group(0),'')
-    bonusdisc = re.compile(r"\s+\(bonus disc(?::\s+([^)]+))?\)")
-    matches = bonusdisc.search(album)
-    if matches:
-        album = album.replace(matches.group(0),'')
-    return album
+def sanitize_data(data, albumartist):
+    data = data.replace('style=padding-right:20px;"','')
+    if albumartist == u"Various Artists":
+        data = data.replace('<class="subtitle">Various Artists', '<a href="" class="subtitle">Various Artists</a>')
+    data = re.sub(r"(?is)(<script[^>]*>)(.*?)(</script>)", "\1\3", data)
+    return data
 
-def scrape_styles(data):
-    styles = []
-    print " * Scraping styles:",
+def _data_downloaded(album, target, albumtitle, albumartist, metadata, data, http, error):
     try:
-        for style in data.find(text="Genre Listing").findNext('ul').findAll('a'):
-            styles.append(style.contents[0].replace("/ ","/"))
-        if styles == []:
-            print "none"
-            return
-        for style in styles:
-            if style != styles[0]:
-                print "\b, " + style,
-            else:
-                print style,
-        return styles
-    except:
-        print "none"
-        return styles
+        if error:
+            print "[fail]"
+            album.log.error(str(http.errorString()))
+        else:
+            print "[ OK ]"
+            data = sanitize_data(data, albumartist)
+            try:
+                html = BeautifulSoup(data)
+            except:
+                print "\nCRAP! Looks like we're getting bad HTML from allmusic.com\n"
+                if target == "album_search" or target == "album_data":
+                    album._requests += 1
+                    print " * Sending artist search request",
+                    artist_search(album, metadata, albumtitle)
+                    return
+                if target == "artist_search" or target == "artist_data":
+                    return
+            if target == "album_search":
+                album._requests += 1
+                album_url = parse_album_search(html, albumartist, albumtitle)
+                if not album_url and albumartist != "Various Artists":
+                    print " * Sending artist search request",
+                    artist_search(album, metadata, albumtitle)
+                else:
+                    print " * Requesting album data",
+                    get_data(album_url, "album_data", albumtitle, albumartist, album, metadata)
+            if target == "album_data" or target == "artist_data" or target == "artist_search":
+                album._requests += 1
+                scrape_styles(html, album, target, albumtitle, albumartist, metadata)
+    finally:
+        album._requests -= 1
+        album._finalize_loading(None)
+
+def get_data(path, target, albumtitle, albumartist, album, metadata):
+    try:
+        album._requests += 1
+        album.tagger.xmlws.download("allmusic.com", 80, str(path),
+        partial(_data_downloaded, album, target, albumtitle, albumartist, metadata), position=1)
+    finally:
+        album._requests -= 1
+    return False
+
+def album_search(album, metadata, albumtitle):
+    path = "/cg/amg.dll?p=amg&opt1=2&sql=" + QtCore.QUrl.toPercentEncoding(unicode(albumtitle))
+    return get_data(path, "album_search", albumtitle, metadata["albumartist"], album, metadata)
+
+def artist_search(album, metadata, albumtitle):
+    path = "/cg/amg.dll?p=amg&opt1=1&sql=" + QtCore.QUrl.toPercentEncoding(unicode(metadata["albumartist"]))
+    return get_data(path, "artist_search", albumtitle, metadata["albumartist"], album, metadata)
+
+def clean_album_title(albumtitle):
+    albumtitle = re.sub(r"\s+\(disc (\d+)(?::\s+([^)]+))?\)", r"", albumtitle)
+    albumtitle = re.sub(r"\s+\(bonus disc(?::\s+([^)]+))?\)", r"", albumtitle)
+    return albumtitle
 
 def allmusic_genre(album, metadata, release):
-    styles = []
-    album = clean_album_name(metadata["album"])
-    print " * Looking for " + album + " by " + metadata["albumartist"]
-    data = album_search(metadata["albumartist"], album)
-    if data != None:
-        styles = scrape_styles(data)
-    if styles == [] and metadata["albumartist"] != "Various Artists":
-        data = artist_search(metadata["albumartist"])
-        if data != None:
-            styles = scrape_styles(data)
-    if styles == []:
-        print " * Dang, couldn't find anything!\n"
-        return
-    metadata["genre"] = styles
-    print '\n'
+    albumtitle = clean_album_title(metadata["album"])
+    print " * Looking for " + albumtitle + " by " + metadata["albumartist"]
+    print " * Sending album search request",
+    album._requests += 1
+    album.tagger.xmlws.add_task(partial(album_search, album, metadata, albumtitle), position=1)
 
 register_album_metadata_processor(allmusic_genre)
+#register_options_page(AllMusicOptionsPage)
