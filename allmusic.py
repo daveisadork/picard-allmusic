@@ -21,12 +21,12 @@ def finalize_genres(styles, metadata, target, albumtitle, albumartist, album):
         album._requests += 1
         album.tagger.xmlws.add_task(partial(artist_search, album, metadata, albumtitle), position=1)
     elif styles == []:
-        print " * Dang, couldn't find anything!",
+        print " * Dang, couldn't find anything!\n"
     else:
         metadata["genre"] = styles
         for track in album._new_tracks:
             track.metadata["genre"] = styles
-        print ""
+        print "\n"
 
 def scrape_styles(html, album, target, albumtitle, albumartist, metadata):
     styles = []
@@ -44,10 +44,38 @@ def scrape_styles(html, album, target, albumtitle, albumartist, metadata):
     except:
         pass
     finally:
-        print "\n",
         finalize_genres(styles, metadata, target, albumtitle, albumartist, album)
         metadata["genre"] = styles
         album._requests -= 1
+
+def parse_artist_search(search_results, albumartist):
+    brackets = re.compile(r" \[.*]")
+    results = []
+    artists = []
+    print " * Parsing artist search results",
+    for listings in search_results.find(id="results-table").findAll('tr'):
+        try:
+            artist_string = listings.find(style="width:290px;word-wrap:break-word;").find('a').string#.encode('utf-8')
+            artist_url = listings.find(style="width:290px;word-wrap:break-word;").find('a')['href']
+            artist_string = re.sub(r" \[.*]", r"", artist_string)
+            results.append([artist_string,artist_url])
+            artists.append(artist_string)
+        except:
+            pass
+    if results == []:
+        print "[fail]"
+        return
+    print "[ OK ]"
+    print " * Looking for a close match:",
+    match = get_close_matches(albumartist, artists, 1, 0.85)
+    if match == []:
+        print "none\n"
+        return None
+    print match[0]
+    for search in results:
+        if match[0].encode('utf-8') == search[0]:
+           return search[1]
+    return None
 
 def parse_album_search(search_results, albumartist, albumtitle):
     results = []
@@ -75,6 +103,7 @@ def parse_album_search(search_results, albumartist, albumtitle):
         if match[0] == search[2].encode('utf-8'):
             print search[1] + " by " + search[0]
             return search[3]
+    return None
 
 def sanitize_data(data, albumartist):
     data = data.replace('style=padding-right:20px;"','')
@@ -94,7 +123,7 @@ def _data_downloaded(album, target, albumtitle, albumartist, metadata, data, htt
             try:
                 html = BeautifulSoup(data)
             except:
-                print "\nCRAP! Looks like we're getting bad HTML from allmusic.com\n"
+                print " * CRAP! Looks like we're getting bad HTML from allmusic.com\n"
                 if target == "album_search" or target == "album_data":
                     album._requests += 1
                     print " * Sending artist search request",
@@ -111,7 +140,14 @@ def _data_downloaded(album, target, albumtitle, albumartist, metadata, data, htt
                 else:
                     print " * Requesting album data",
                     get_data(album_url, "album_data", albumtitle, albumartist, album, metadata)
-            if target == "album_data" or target == "artist_data" or target == "artist_search":
+            if target == "artist_search" and html.html.head.title.string == "allmusic":
+                artist_url = parse_artist_search(html, albumartist)
+                if artist_url == None:
+                    finalize_genres([], metadata, target, albumtitle, albumartist, album)
+                else:
+                    album._requests += 1
+                    get_data(artist_url, "artist_data", albumtitle, albumartist, album, metadata)
+            if target == "album_data" or target == "artist_data" or (target == "artist_search" and html.html.head.title.string != "allmusic"):
                 album._requests += 1
                 scrape_styles(html, album, target, albumtitle, albumartist, metadata)
     finally:
