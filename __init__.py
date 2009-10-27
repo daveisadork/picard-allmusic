@@ -12,8 +12,7 @@ except:
     try:
         from picard.plugins.allmusic.BeautifulSoup import BeautifulSoup
     except:
-        print "Could not import BeautifulSoup. Get it at http://www.crummy.com/software/BeautifulSoup/"
-        raise ImportError
+        raise ImportError, "Could not import BeautifulSoup. Get it at http://www.crummy.com/software/BeautifulSoup/"
 from PyQt4 import QtCore
 from picard.ui.options import register_options_page, OptionsPage
 from picard.config import BoolOption, IntOption, TextOption
@@ -113,7 +112,7 @@ def parse_album_search(search_results, albumartist, albumtitle):
         strings.append(records[2])
     search_string = albumartist + albumtitle
     print " * Looking for a close match:",
-    match = get_close_matches(search_string, strings, 1, 0.85)
+    match = get_close_matches(search_string, strings, 1, 0.65)
     if match == []:
         print "none"
         return None
