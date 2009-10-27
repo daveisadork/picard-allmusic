@@ -11,13 +11,13 @@ from picard.ui.options import register_options_page, OptionsPage
 from picard.config import BoolOption, IntOption, TextOption
 #from picard.plugins.allmusic.ui_options_allmusic import Ui_AllMusicOptionsPage
 from picard.metadata import register_album_metadata_processor, register_track_metadata_processor
-from picard.util import partial
+from picard.util import partial, translate_artist
 from difflib import get_close_matches
 from BeautifulSoup import BeautifulSoup
 import re
 
 def finalize_genres(styles, metadata, target, albumtitle, albumartist, album):
-    if styles == [] and target == "album_data":
+    if styles == [] and target == "album_data" and albumartist != "Various Artists":
         album._requests += 1
         album.tagger.xmlws.add_task(partial(artist_search, album, metadata, albumtitle), position=1)
     elif styles == []:
@@ -42,7 +42,7 @@ def scrape_styles(html, album, target, albumtitle, albumartist, metadata):
             else:
                 print style,
     except:
-        pass
+        print "none"
     finally:
         finalize_genres(styles, metadata, target, albumtitle, albumartist, album)
         metadata["genre"] = styles
@@ -69,11 +69,11 @@ def parse_artist_search(search_results, albumartist):
     print " * Looking for a close match:",
     match = get_close_matches(albumartist, artists, 1, 0.85)
     if match == []:
-        print "none\n"
+        print "none"
         return None
     print match[0]
     for search in results:
-        if match[0].encode('utf-8') == search[0]:
+        if match[0] == search[0]:
            return search[1]
     return None
 
@@ -85,6 +85,7 @@ def parse_album_search(search_results, albumartist, albumtitle):
         artist_string = listings.find(style="width:206px;word-wrap:break-word;").string
         album_string = listings.find(style="width:230px;word-wrap:break-word;").a.string
         album_url = listings.find(style="width:230px;word-wrap:break-word;").a["href"]
+        artist_string = artist_string.replace('Original Soundtrack','Various Artists')
         search_string = artist_string + album_string
         results.append([artist_string, album_string, search_string, album_url])
     if results == []:
@@ -95,12 +96,12 @@ def parse_album_search(search_results, albumartist, albumtitle):
         strings.append(records[2])
     search_string = albumartist + albumtitle
     print " * Looking for a close match:",
-    match = get_close_matches(search_string, strings, 1, 0.6)
+    match = get_close_matches(search_string, strings, 1, 0.85)
     if match == []:
         print "none"
         return None
     for search in results:
-        if match[0] == search[2].encode('utf-8'):
+        if match[0] == search[2]:
             print search[1] + " by " + search[0]
             return search[3]
     return None
@@ -145,6 +146,7 @@ def _data_downloaded(album, target, albumtitle, albumartist, metadata, data, htt
                 if artist_url == None:
                     finalize_genres([], metadata, target, albumtitle, albumartist, album)
                 else:
+                    print " * Requesting artist data",
                     album._requests += 1
                     get_data(artist_url, "artist_data", albumtitle, albumartist, album, metadata)
             if target == "album_data" or target == "artist_data" or (target == "artist_search" and html.html.head.title.string != "allmusic"):
@@ -163,13 +165,13 @@ def get_data(path, target, albumtitle, albumartist, album, metadata):
         album._requests -= 1
     return False
 
-def album_search(album, metadata, albumtitle):
+def album_search(album, metadata, albumtitle, albumartist):
     path = "/cg/amg.dll?p=amg&opt1=2&sql=" + QtCore.QUrl.toPercentEncoding(unicode(albumtitle))
-    return get_data(path, "album_search", albumtitle, metadata["albumartist"], album, metadata)
+    return get_data(path, "album_search", albumtitle, albumartist, album, metadata)
 
-def artist_search(album, metadata, albumtitle):
+def artist_search(album, metadata, albumtitle, albumartist):
     path = "/cg/amg.dll?p=amg&opt1=1&sql=" + QtCore.QUrl.toPercentEncoding(unicode(metadata["albumartist"]))
-    return get_data(path, "artist_search", albumtitle, metadata["albumartist"], album, metadata)
+    return get_data(path, "artist_search", albumtitle, albumartist, album, metadata)
 
 def clean_album_title(albumtitle):
     albumtitle = re.sub(r"\s+\(disc (\d+)(?::\s+([^)]+))?\)", r"", albumtitle)
@@ -177,11 +179,13 @@ def clean_album_title(albumtitle):
     return albumtitle
 
 def allmusic_genre(album, metadata, release):
+    if metadata["albumartist"] != "Various Artists":
+        albumartist = translate_artist(metadata['artist'], metadata['artistsort'])
     albumtitle = clean_album_title(metadata["album"])
-    print " * Looking for " + albumtitle + " by " + metadata["albumartist"]
+    print " * Looking for " + albumtitle + " by " + albumartist
     print " * Sending album search request",
     album._requests += 1
-    album.tagger.xmlws.add_task(partial(album_search, album, metadata, albumtitle), position=1)
+    album.tagger.xmlws.add_task(partial(album_search, album, metadata, albumtitle, albumartist), position=1)
 
 register_album_metadata_processor(allmusic_genre)
 #register_options_page(AllMusicOptionsPage)
