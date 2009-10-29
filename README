@@ -14,9 +14,7 @@ directory (mine is ~/.config/MusicBrainz/Picard/plugins) and put __init__.py in
 there. If you're on Linux, you'll need to install the python-beautifulsoup 
 package provided by your distribution (to do this on Ubuntu, you could just run
 'sudo aptitude install python-beautifulsoup' at a terminal) and you're good to
-go. If you're on Windows, you probably need to download BeautifulSoup from the
-website listed above and put BeautifulSoup.py in the allmusic directory we
-created earlier with __init__.py. Then you should be all set.
+go. If you're on Windows, I would think about switching to Linux if I were you. 
 
 There are no configuration options yet (but I'm Working on that), so you're kind
 of just stuck with whatever the plugin happens to find. Basically, assuming we 
