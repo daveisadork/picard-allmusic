@@ -214,10 +214,8 @@ def _data_downloaded(album, target, albumtitle, albumartist, metadata, data, htt
         else:
             print "[ OK ] "
             data = sanitize_data(data, albumartist)
-            output = open('/home/dhayes/Desktop/output.txt', 'w')
             try:
                 html = BeautifulSoup(data)
-                output.write(html.prettify())
             except:
                 print " * CRAP! Looks like we're getting bad (album) HTML from allmusic.com\n"
                 if target == "album_search" or target == "album_data":
