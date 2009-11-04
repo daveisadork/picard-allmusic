@@ -74,13 +74,15 @@ def get_close_matches(search_string, search_set, max_results, min_score):
     for items in winners:
         if len(matches) < max_results:
             matches.append(items[1])
-            print items[0],
     return matches
 
-def finalize_genres(styles, metadata, target, albumtitle, albumartist, album):
+def finalize_genres(styles, metadata, target, albumtitle, albumartist, album, html):
     if styles == [] and target == "album_data" and albumartist != "Various Artists":
         album._requests += 1
         album.tagger.xmlws.add_task(partial(artist_search, album, metadata, albumtitle, albumartist), position=1)
+    elif styles == [] and (target == "artist_data" or target == "artist_search"):
+        album._requests += 1
+        album.tagger.xmlws.add_task(partial(scrape_genres, html, album, "scrape_genre", albumtitle, albumartist, metadata), position=1)
     elif styles == []:
         print " * Dang, couldn't find anything!\n"
     else:
@@ -89,12 +91,12 @@ def finalize_genres(styles, metadata, target, albumtitle, albumartist, album):
             track.metadata["genre"] = styles
         print "\n"
 
-def scrape_styles(html, album, target, albumtitle, albumartist, metadata):
+def scrape_genres(html, album, target, albumtitle, albumartist, metadata):
     styles = []
+    print " * Scraping genres:",
     try:
-        print " * Scraping styles:",
-        for style in html.find(text="Genre Listing").findNext('td').div.ul.findAll('a'):
-            styles.append(style.contents[0].replace("/ ","/"))
+        for style in html.find(text="Begin Genre Listing").findNext('td').div.ul.findAll('a'):
+            styles.append(style.contents[0].replace("/ ","/").replace("R&B;", "R&B"))
         if styles == []:
             print "none"
         for style in styles:
@@ -105,9 +107,29 @@ def scrape_styles(html, album, target, albumtitle, albumartist, metadata):
     except:
         print "none"
     finally:
-        finalize_genres(styles, metadata, target, albumtitle, albumartist, album)
-        metadata["genre"] = styles
+        finalize_genres(styles, metadata, target, albumtitle, albumartist, album, html)
         album._requests -= 1
+        album._finalize_loading(None)
+
+def scrape_styles(html, album, target, albumtitle, albumartist, metadata):
+    styles = []
+    print " * Scraping styles:",
+    try:
+        for style in html.find(text="Genre Listing").findNext('td').div.ul.findAll('a'):
+            styles.append(style.contents[0].replace("/ ","/").replace("R&B;", "R&B"))
+        if styles == []:
+            print "none"
+        for style in styles:
+            if style != styles[0]:
+                print "\b, " + style,
+            else:
+                print style,
+    except:
+        print "none"
+    finally:
+        finalize_genres(styles, metadata, target, albumtitle, albumartist, album, html)
+        album._requests -= 1
+        album._finalize_loading(None)
 
 def parse_artist_search(search_results, albumartist):
     brackets = re.compile(r" \[.*]")
@@ -119,7 +141,7 @@ def parse_artist_search(search_results, albumartist):
             try:
                 artist_string = listings.find(style="width:290px;word-wrap:break-word;").find('a').string
                 artist_url = listings.find(style="width:290px;word-wrap:break-word;").find('a')['href']
-                artist_string = re.sub(r" \[.*]", r"", artist_string)
+                artist_string = unicode(ununicode(re.sub(r" \[.*]", r"", artist_string)))
                 results.append([artist_string,artist_url])
                 artists.append(artist_string)
             except:
@@ -151,9 +173,9 @@ def parse_album_search(search_results, albumartist, albumtitle):
     try:
         for listings in search_results.find(id="results-table").findAll('tr', attrs={"class" : "visible"}):
             try:
-                artist_string = listings.find(style="width:206px;word-wrap:break-word;").string
-                album_string = listings.find(style="width:230px;word-wrap:break-word;").a.string
-                album_url = listings.find(style="width:230px;word-wrap:break-word;").a["href"]
+                artist_string = unicode(ununicode(listings.find(style="width:206px;word-wrap:break-word;").string))
+                album_string = unicode(ununicode(listings.find(style="width:230px;word-wrap:break-word;").a.string))
+                album_url = unicode(ununicode(listings.find(style="width:230px;word-wrap:break-word;").a["href"]))
                 artist_string = artist_string.replace('Original Soundtrack','Various Artists')
                 search_string = artist_string + album_string
                 results.append([artist_string, album_string, search_string, album_url])
@@ -169,7 +191,7 @@ def parse_album_search(search_results, albumartist, albumtitle):
         strings.append(records[2])
         artists.append(records[0])
     print " * Looking for a close match:",
-    artist_match = get_close_matches(albumartist, artists, 3, 0.85)
+    artist_match = get_close_matches(albumartist, artists, 3, 0.87)
     if artist_match != []:
         for search in results:
             for items in artist_match:
@@ -187,7 +209,7 @@ def parse_album_search(search_results, albumartist, albumtitle):
                     print search[1] + " by " + search[0]
                     return search[3]
     search_string = albumartist + albumtitle
-    match = get_close_matches(search_string, strings, 1, 0.75)
+    match = get_close_matches(search_string, strings, 1, 0.87)
     if match == []:
         print "none"
         return None
@@ -202,6 +224,9 @@ def sanitize_data(data, albumartist):
     if albumartist == u"Various Artists":
         data = data.replace('<class="subtitle">Various Artists', '<a href="" class="subtitle">Various Artists</a>')
     data = re.sub(r"(?is)(<script[^>]*>)(.*?)(</script>)", " ", data)
+    data = data.replace('<td colspan="2" height=280px">','<td colspan="2" height="280px">')
+    data = data.replace('<<', '&lt;&lt;')
+    data = data.replace('>>', '&gt;&gt;')
     data = data.replace('&amp;', '&')
     return data
 
@@ -226,21 +251,22 @@ def _data_downloaded(album, target, albumtitle, albumartist, metadata, data, htt
                 if target == "artist_search" or target == "artist_data":
                     return
             if target == "album_search":
-                album._requests += 1
                 album_url = parse_album_search(html, albumartist, albumtitle)
                 if album_url != None:
                     print " * Requesting album data",
+                    album._requests += 1
                     get_data(album_url, "album_data", albumtitle, albumartist, album, metadata)
                 elif albumartist != "Various Artists":
                     print " * Sending artist search request",
+                    album._requests += 1
                     artist_search(album, metadata, albumtitle, albumartist)
                 else:
-                    finalize_genres([], metadata, "album_data", albumtitle, albumartist, album)
+                    finalize_genres([], metadata, "scrape_genre", albumtitle, albumartist, album, html)
             try:
                 if target == "artist_search" and html.find('title').string == "allmusic":
                     artist_url = parse_artist_search(html, albumartist)
                     if artist_url == None:
-                        finalize_genres([], metadata, target, albumtitle, albumartist, album)
+                        finalize_genres([], metadata, target, albumtitle, albumartist, album, html)
                     else:
                         print " * Requesting artist data",
                         album._requests += 1
