@@ -20,8 +20,13 @@ There are no configuration options yet (but I'm Working on that), so you're kind
 of just stuck with whatever the plugin happens to find. Basically, assuming we 
 can find a page for whatever album we're trying to tag, we just grab all of the
 "styles" listed on that page and tell Picard to use them as genre tags. Failing
-that, we grab the "styles" from the artist page and use those.
+that, we grab the "styles" from the artist page and use those. 
 
-Also, it's really slow, so I wouldn't recommend trying to run it on your 40k
-song collection all at once, although after dropping urllib and urllib2 in
+On my music collection, I ended up with about 96% coverage, meaning only about 
+4% of my music overall was either not tagged with any genre data (common with 
+non-score movie soundtracks and other compilations) or was tagged with incorrect
+genre data (*very* uncommon, though I am working on a way to deal with it). 
+
+Also, it's really slow. So I wouldn't recommend trying to run it on your 40k
+song collection all at once. Although, after dropping urllib and urllib2 in
 favor of Picard's own facilities, things aren't so bad. 
